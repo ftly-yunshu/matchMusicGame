@@ -1,0 +1,241 @@
+import type { GameState, LevelConfig, TapResult } from './types.ts';
+
+export function validateLevel(level: LevelConfig): void {
+  if (level.cards.length % 3 !== 0) {
+    throw new Error(`item_total must be divisible by 3: ${level.cards.length}`);
+  }
+
+  const counts = new Map<string, number>();
+  for (const card of level.cards) {
+    counts.set(card.matchId, (counts.get(card.matchId) ?? 0) + 1);
+  }
+
+  for (const [matchId, count] of counts) {
+    if (count % 3 !== 0) {
+      throw new Error(`matchId ${matchId} count must be divisible by 3: ${count}`);
+    }
+  }
+}
+
+export function createGameState(level: LevelConfig): GameState {
+  validateLevel(level);
+
+  return {
+    levelId: level.id,
+    title: level.title,
+    slotCount: level.slotCount,
+    cards: level.cards.map((card) => ({ ...card, status: 'board' })),
+    tray: [],
+    archivedCount: 0,
+    status: 'playing',
+    message: '',
+    locked: false,
+    deadlocked: false
+  };
+}
+
+export function setLocked(state: GameState, locked: boolean): GameState {
+  return { ...state, locked };
+}
+
+export function tapCard(state: GameState, cardId: string, clickableCardIds: Set<string>): TapResult {
+  if (state.status !== 'playing') {
+    return { state, archivedCardIds: [], blockedReason: 'not-playing' };
+  }
+  if (state.locked) {
+    return { state, archivedCardIds: [], blockedReason: 'locked' };
+  }
+  if (!clickableCardIds.has(cardId)) {
+    return { state, archivedCardIds: [], blockedReason: 'not-clickable' };
+  }
+
+  const card = state.cards.find((item) => item.id === cardId);
+  if (!card || card.status !== 'board') {
+    return { state, archivedCardIds: [], blockedReason: 'not-on-board' };
+  }
+
+  let next: GameState = {
+    ...state,
+    cards: state.cards.map((item) => (item.id === cardId ? { ...item, status: 'tray' } : item)),
+    tray: [...state.tray, cardId],
+    message: '',
+    deadlocked: false
+  };
+
+  const archiveIds = findArchiveIds(next);
+  if (archiveIds.length === 3) {
+    const archiveSet = new Set(archiveIds);
+    next = {
+      ...next,
+      cards: next.cards.map((item) => (archiveSet.has(item.id) ? { ...item, status: 'archived' } : item)),
+      tray: next.tray.filter((id) => !archiveSet.has(id)),
+      archivedCount: next.archivedCount + 3,
+      message: '归档完成'
+    };
+  }
+
+  const boardRemaining = next.cards.some((item) => item.status === 'board');
+  if (!boardRemaining) {
+    next = { ...next, status: 'won', message: '榜单刷新完成' };
+  } else if (next.tray.length >= next.slotCount) {
+    next = { ...next, status: 'failed', message: '待归档区已满' };
+  }
+
+  return { state: next, movedCardId: cardId, archivedCardIds: archiveIds };
+}
+
+export function withDeadlockCheck(state: GameState, clickableCardIds: Set<string>): GameState {
+  if (state.status !== 'playing') return state;
+  const deadlocked = isDeadlocked(state, clickableCardIds);
+  return {
+    ...state,
+    deadlocked,
+    message: deadlocked ? '没有安全归档路径，可使用重排或系统归档' : state.message
+  };
+}
+
+export function getHintIds(state: GameState, clickableCardIds: Set<string>): string[] {
+  const candidates = state.cards.filter((card) => card.status === 'board' && clickableCardIds.has(card.id));
+  const trayCounts = getTrayMatchCounts(state);
+
+  for (const candidate of candidates) {
+    if ((trayCounts.get(candidate.matchId) ?? 0) >= 2) return [candidate.id];
+  }
+
+  const byMatch = new Map<string, string[]>();
+  for (const candidate of candidates) {
+    const list = byMatch.get(candidate.matchId) ?? [];
+    list.push(candidate.id);
+    byMatch.set(candidate.matchId, list);
+  }
+
+  return [...byMatch.values()].find((ids) => ids.length >= 3)?.slice(0, 3) ?? candidates.slice(0, 1).map((card) => card.id);
+}
+
+export function autoArchiveOne(state: GameState, clickableCardIds: Set<string>): GameState {
+  const hintIds = getHintIds(state, clickableCardIds);
+  const first = hintIds[0];
+  if (!first) return state;
+  return tapCard(state, first, clickableCardIds).state;
+}
+
+export function shuffleBoardCards(state: GameState): GameState {
+  const boardCards = state.cards.filter((card) => card.status === 'board');
+  const reversed = [...boardCards].reverse();
+  let index = 0;
+  return {
+    ...state,
+    cards: state.cards.map((card) => (card.status === 'board' ? reversed[index++] : card)),
+    message: '整理台已重排',
+    deadlocked: false
+  };
+}
+
+export function shuffleBoardCardsForClickables(state: GameState, clickableCardIds: Set<string>): GameState {
+  const boardCards = state.cards.filter((card) => card.status === 'board');
+  const clickablePositions = state.cards
+    .map((card, index) => (card.status === 'board' && clickableCardIds.has(card.id) ? index : -1))
+    .filter((index) => index >= 0);
+  const target = findShuffleTarget(state, clickablePositions.length);
+
+  if (!target) {
+    return {
+      ...state,
+      message: '当前没有可重排出的三消组合',
+      deadlocked: false
+    };
+  }
+
+  const pickedIds = new Set<string>();
+  const picked = boardCards.filter((card) => {
+    if (card.matchId !== target.matchId || pickedIds.size >= target.need) return false;
+    pickedIds.add(card.id);
+    return true;
+  });
+  const rest = boardCards.filter((card) => !pickedIds.has(card.id));
+  const targetPositions = new Set(clickablePositions.slice(0, target.need));
+  let pickedIndex = 0;
+  let restIndex = 0;
+
+  return {
+    ...state,
+    cards: state.cards.map((card, index) => {
+      if (card.status !== 'board') return card;
+      return targetPositions.has(index) ? picked[pickedIndex++] : rest[restIndex++];
+    }),
+    message: '整理台已重排，顶部有可归档组合',
+    deadlocked: false
+  };
+}
+
+function findArchiveIds(state: GameState): string[] {
+  const idsByMatch = new Map<string, string[]>();
+  for (const id of state.tray) {
+    const card = state.cards.find((item) => item.id === id);
+    if (!card) continue;
+    const ids = idsByMatch.get(card.matchId) ?? [];
+    ids.push(id);
+    idsByMatch.set(card.matchId, ids);
+  }
+
+  return [...idsByMatch.values()].find((ids) => ids.length >= 3)?.slice(0, 3) ?? [];
+}
+
+function isDeadlocked(state: GameState, clickableCardIds: Set<string>): boolean {
+  if (state.tray.length >= state.slotCount) return false;
+  const boardCards = state.cards.filter((card) => card.status === 'board');
+  if (boardCards.length === 0) return false;
+
+  const trayCounts = getTrayMatchCounts(state);
+  const clickableCounts = new Map<string, number>();
+  for (const card of boardCards) {
+    if (!clickableCardIds.has(card.id)) continue;
+    clickableCounts.set(card.matchId, (clickableCounts.get(card.matchId) ?? 0) + 1);
+  }
+
+  for (const [matchId, clickCount] of clickableCounts) {
+    const trayCount = trayCounts.get(matchId) ?? 0;
+    if (trayCount + Math.min(clickCount, state.slotCount - state.tray.length) >= 3) {
+      return false;
+    }
+    if (clickCount >= 3) return false;
+  }
+
+  return true;
+}
+
+function getTrayMatchCounts(state: GameState): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const id of state.tray) {
+    const card = state.cards.find((item) => item.id === id);
+    if (!card) continue;
+    counts.set(card.matchId, (counts.get(card.matchId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function findShuffleTarget(state: GameState, clickableCount: number): { matchId: string; need: number } | undefined {
+  const trayCounts = getTrayMatchCounts(state);
+  const boardCounts = new Map<string, number>();
+  for (const card of state.cards) {
+    if (card.status !== 'board') continue;
+    boardCounts.set(card.matchId, (boardCounts.get(card.matchId) ?? 0) + 1);
+  }
+
+  const trayTargets = [...trayCounts.entries()]
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+  for (const [matchId, count] of trayTargets) {
+    const need = 3 - count;
+    if (need > 0 && need <= clickableCount && (boardCounts.get(matchId) ?? 0) >= need) {
+      return { matchId, need };
+    }
+  }
+
+  if (clickableCount < 3) return undefined;
+  for (const [matchId, count] of boardCounts) {
+    if (count >= 3) return { matchId, need: 3 };
+  }
+
+  return undefined;
+}

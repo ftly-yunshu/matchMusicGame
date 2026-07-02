@@ -1,0 +1,19 @@
+{
+  "name": "match-music-game",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "check:logic": "tsc --noEmit && node --experimental-strip-types src/game/selfcheck.ts",
+    "preview": "vite --host 127.0.0.1"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
