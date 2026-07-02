@@ -477,10 +477,33 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawStatus(): void {
-    const text = this.state.status === 'playing' ? this.state.message : this.state.message || this.state.status;
+    const text = this.toastMessage || (this.state.status === 'playing' ? this.state.message : this.state.message || this.state.status);
     if (!text) return;
-    const color = this.state.status === 'failed' ? '#b42318' : this.state.status === 'won' ? '#087443' : '#624b31';
-    this.uiLayer.add(this.add.text(24, 618, text, { fontSize: '13px', color, fixedWidth: 340 }));
+    const color = this.state.status === 'failed' ? '#fff5f5' : this.state.status === 'won' ? '#f0fff7' : '#fff8ec';
+    const toast = this.add.container(GAME_WIDTH / 2, 618).setDepth(12000);
+    const bg = this.add.rectangle(0, 0, 230, 34, 0x2b2119, 0.88).setOrigin(0.5).setStrokeStyle(2, 0xffd36a);
+    const label = this.add.text(0, 0, text, {
+      fontSize: '14px',
+      color,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    toast.add([bg, label]);
+    toast.setAlpha(0);
+    toast.setY(628);
+    this.uiLayer.add(toast);
+    this.tweens.add({
+      targets: toast,
+      y: 612,
+      alpha: 1,
+      duration: 160,
+      ease: 'Cubic.easeOut',
+      hold: 900,
+      yoyo: true,
+      onComplete: () => {
+        if (this.toastMessage === text) this.toastMessage = '';
+        toast.destroy();
+      }
+    });
   }
 
   private tickCountdown(): void {

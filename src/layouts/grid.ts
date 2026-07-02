@@ -1,4 +1,5 @@
 import type { CardState, LayoutCard } from '../game/types.ts';
+import { shuffledSlots } from './deterministic.ts';
 
 export const GRID_START_X = 26;
 export const GRID_START_Y = 124;
@@ -10,10 +11,13 @@ export const GRID_ROWS = 6;
 export const GRID_WIDTH = 342;
 
 export function buildGridLayout(cards: CardState[]): LayoutCard[] {
+  const slots = shuffledSlots(cards.length, 101);
+
   return cards.flatMap((card, index) => {
     if (card.status !== 'board') return [];
-    const col = index % GRID_PER_ROW;
-    const row = Math.floor(index / GRID_PER_ROW);
+    const slot = slots[index] ?? index;
+    const col = slot % GRID_PER_ROW;
+    const row = Math.floor(slot / GRID_PER_ROW);
     return [{
       cardId: card.id,
       x: GRID_START_X + col * (GRID_CARD_SIZE + GRID_GAP_X),

@@ -1,6 +1,7 @@
 import { CARD_HEIGHT, CARD_WIDTH } from '../config/constants.ts';
 import type { CardState, LayoutCard } from '../game/types.ts';
 import { applyTopOnlyClickability } from './aabb.ts';
+import { seededOffset, shuffledSlots } from './deterministic.ts';
 
 export function buildStackLayout(cards: CardState[]): LayoutCard[] {
   const positions = buildPyramidPositions(cards.length);
@@ -28,6 +29,7 @@ function buildPyramidPositions(count: number): Array<{ x: number; y: number; z: 
   const xStep = 41;
   const yStep = 52;
   const startY = count > 24 ? 166 : 200;
+  const order = shuffledSlots(count, 307);
   const positions: Array<{ x: number; y: number; z: number }> = [];
   const centerX = GAME_BOARD_WIDTH / 2;
   const centerY = startY + ((rowCounts.length - 1) * yStep) / 2 + CARD_HEIGHT / 2;
@@ -37,8 +39,10 @@ function buildPyramidPositions(count: number): Array<{ x: number; y: number; z: 
     const rowWidth = CARD_WIDTH + (rowCount - 1) * xStep;
     const startX = Math.round((GAME_BOARD_WIDTH - rowWidth) / 2);
     for (let col = 0; col < rowCount; col++) {
-      const x = startX + col * xStep;
-      const y = startY + row * yStep;
+      const slot = positions.length;
+      const randomIndex = order[slot] ?? slot;
+      const x = startX + col * xStep + seededOffset(randomIndex, 313, 10);
+      const y = startY + row * yStep + seededOffset(randomIndex, 317, 8);
       const dx = Math.abs(x + CARD_WIDTH / 2 - centerX) / xStep;
       const dy = Math.abs(y + CARD_HEIGHT / 2 - centerY) / yStep;
       const z = Math.round(100 - (dx + dy) * 10);

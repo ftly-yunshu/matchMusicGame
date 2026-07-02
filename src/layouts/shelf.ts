@@ -1,4 +1,5 @@
 import type { CardState, LayoutCard } from '../game/types.ts';
+import { shuffledSlots } from './deterministic.ts';
 
 export const SHELF_START_X = 17;
 export const SHELF_START_Y = 188;
@@ -12,6 +13,8 @@ export const SHELF_GRID_ROWS = 6;
 export const SHELF_VISIBLE_SLOTS = SHELF_PER_ROW * SHELF_LAYER_ROWS;
 
 export function buildShelfLayout(cards: CardState[]): LayoutCard[] {
+  const slots = shuffledSlots(SHELF_VISIBLE_SLOTS, 211);
+
   return cards.flatMap((card, index) => {
     if (card.status !== 'board') return [];
     if (index >= SHELF_VISIBLE_SLOTS) {
@@ -19,7 +22,7 @@ export function buildShelfLayout(cards: CardState[]): LayoutCard[] {
       if (frontCard?.status !== 'archived') return [];
     }
 
-    const slotIndex = index % SHELF_VISIBLE_SLOTS;
+    const slotIndex = slots[index % SHELF_VISIBLE_SLOTS] ?? index % SHELF_VISIBLE_SLOTS;
     const col = slotIndex % SHELF_PER_ROW;
     const row = Math.floor(slotIndex / SHELF_PER_ROW);
     return [{

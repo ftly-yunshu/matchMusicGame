@@ -52,14 +52,16 @@ export const ARCHIVE_PANEL = {
 } as const;
 
 export const OVERLAP_LAYOUT = {
-  size: 58,
-  clusterSize: 6,
-  minX: 36,
-  maxX: 296,
-  minY: 130,
-  maxY: 520,
-  clusterRadiusX: 48,
-  clusterRadiusY: 40
+  size: 64,
+  cols: 6,
+  rows: 6,
+  minX: 24,
+  maxX: 318,
+  minY: 120,
+  maxY: 536,
+  jitterX: 46,
+  jitterY: 48,
+  overlapPull: 16
 } as const;
 
 export const LAYOUT_LABELS = {
