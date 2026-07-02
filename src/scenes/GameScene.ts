@@ -299,6 +299,17 @@ export class GameScene extends Phaser.Scene {
       return node;
     });
 
+    let completed = false;
+    let safetyTimer: Phaser.Time.TimerEvent | undefined;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      safetyTimer?.remove(false);
+      for (const node of archiveNodes) node.destroy();
+      onComplete();
+    };
+    safetyTimer = this.time.delayedCall(ANIMATION.mergeMs + ANIMATION.mergeFadeMs + 500, finish);
+
     this.tweens.add({
       targets: archiveNodes,
       x: target.x,
@@ -314,10 +325,7 @@ export class GameScene extends Phaser.Scene {
           scale: 0.35,
           duration: ANIMATION.mergeFadeMs,
           ease: 'Cubic.easeIn',
-          onComplete: () => {
-            for (const node of archiveNodes) node.destroy();
-            onComplete();
-          }
+          onComplete: finish
         });
       }
     });
@@ -427,7 +435,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerHapticFeedback(): void {
-    if ('vibrate' in navigator) navigator.vibrate(35);
+    const vibrate = navigator.vibrate;
+    if (typeof vibrate !== 'function') return;
+
+    try {
+      vibrate.call(navigator, [35]);
+    } catch {
+      // iOS WebKit may expose a non-callable vibration shim through Phaser.
+    }
   }
 
   private drawTray(): void {
