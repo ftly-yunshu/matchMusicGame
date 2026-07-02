@@ -16,9 +16,11 @@ export function buildLayout(kind: LayoutKind, cards: CardState[]): LayoutCard[] 
 }
 
 function unlockFinalTriples(layout: LayoutCard[], cards: CardState[]): LayoutCard[] {
+  const boardCards = cards.filter((card) => card.status === 'board');
+  if (boardCards.length !== 3) return layout;
+
   const boardCounts = new Map<string, number>();
-  for (const card of cards) {
-    if (card.status !== 'board') continue;
+  for (const card of boardCards) {
     boardCounts.set(card.matchId, (boardCounts.get(card.matchId) ?? 0) + 1);
   }
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="84" height="176" viewBox="0 0 84 176">
+  <rect x="3" y="3" width="78" height="170" rx="12" fill="#f8f1e7" fill-opacity=".92"/>
+  <rect x="14" y="16" width="56" height="86" rx="8" fill="#d8b85c"/>
+  <path d="M24 44h36M24 66h36M24 88h36" stroke="#5b513f" stroke-width="1.5"/>
+  <path d="M24 76l36 16" stroke="#111" stroke-width="4"/>
+  <rect x="14" y="110" width="56" height="50" rx="8" fill="#afd3df"/>
+  <text x="42" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#202020">SWING</text>
+  <text x="42" y="154" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#202020">+15</text>
+</svg>

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ANIMATION, GAME_HEIGHT, GAME_WIDTH, LAYOUT_LABELS, PALETTE } from '../config/constants';
+import { ANIMATION, ARCHIVE_PANEL, GAME_HEIGHT, GAME_WIDTH, LAYOUT_LABELS, PALETTE, UI_ASSETS } from '../config/constants';
 import { autoArchiveOne, createGameState, getHintIds, setLocked, shuffleBoardCards, shuffleBoardCardsForClickables, tapCard, validateLevel, withDeadlockCheck } from '../game/rules';
 import type { GameState, LayoutCard, LayoutKind, LevelConfig } from '../game/types';
 import { buildLayout } from '../layouts';
@@ -21,6 +21,7 @@ export class GameScene extends Phaser.Scene {
   private cardNodes = new Map<string, Phaser.GameObjects.Container>();
   private revealingCardIds = new Set<string>();
   private playBoardEntrance = true;
+  private toastMessage = '';
   private countdownSeconds = 10;
   private countdownText?: Phaser.GameObjects.Text;
   private countdownEvent?: Phaser.Time.TimerEvent;
@@ -31,6 +32,9 @@ export class GameScene extends Phaser.Scene {
 
   preload(): void {
     this.load.json(LEVEL_KEY, assetUrl('levels/test-level.json'));
+    for (const asset of Object.values(UI_ASSETS)) {
+      this.load.image(asset, assetUrl(asset));
+    }
   }
 
   create(): void {
@@ -57,6 +61,7 @@ export class GameScene extends Phaser.Scene {
   private resetLevel(): void {
     this.hintIds.clear();
     this.revealingCardIds.clear();
+    this.toastMessage = '';
     this.playBoardEntrance = true;
     this.countdownSeconds = 10;
     this.countdownEvent?.remove(false);
@@ -88,25 +93,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
-    this.backgroundLayer.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, PALETTE.page).setOrigin(0));
-    this.backgroundLayer.add(this.add.rectangle(0, 0, GAME_WIDTH, 104, 0xe4b27b, 0.32).setOrigin(0));
-    this.backgroundLayer.add(this.add.rectangle(14, 92, GAME_WIDTH - 28, 512, PALETTE.pageShadow, 0.38).setOrigin(0));
-    this.backgroundLayer.add(this.add.rectangle(16, 94, GAME_WIDTH - 32, 506, PALETTE.board, 1).setOrigin(0).setStrokeStyle(2, PALETTE.boardLine));
-    for (let i = 0; i < 8; i++) {
-      this.backgroundLayer.add(this.add.rectangle(26 + i * 44, 112 + (i % 3) * 5, 20, 2, 0xe9d8be, 0.45).setOrigin(0));
-    }
+    this.backgroundLayer.add(this.add.image(0, 0, UI_ASSETS.studioBackground).setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT));
+    this.backgroundLayer.add(this.add.rectangle(14, 92, GAME_WIDTH - 28, 512, PALETTE.pageShadow, 0.18).setOrigin(0));
+    this.backgroundLayer.add(this.add.rectangle(16, 94, GAME_WIDTH - 32, 506, PALETTE.board, 0.72).setOrigin(0).setStrokeStyle(2, PALETTE.boardLine));
+    this.backgroundLayer.add(this.add.image(330, 206, UI_ASSETS.tempoMeter).setOrigin(0).setDisplaySize(42, 88).setAlpha(0.78));
   }
 
   private drawHud(): void {
-    this.uiLayer.add(this.add.text(22, 20, '今日推荐榜', { fontSize: '24px', color: PALETTE.ink, fontStyle: 'bold' }));
-    this.uiLayer.add(this.add.text(22, 52, this.level.title, { fontSize: '14px', color: PALETTE.mutedInk }));
-    this.uiLayer.add(this.add.rectangle(198, 20, 92, 42, 0xfff6e7, 1).setOrigin(0).setStrokeStyle(2, 0xd9b98f));
-    this.countdownText = this.add.text(214, 28, formatCountdown(this.countdownSeconds), { fontSize: '24px', color: PALETTE.ink, fontStyle: 'bold' });
+    this.uiLayer.add(this.add.image(19, 9, UI_ASSETS.headerConsole).setOrigin(0).setDisplaySize(352, 72));
+    this.uiLayer.add(this.add.text(34, 21, '今日推荐榜', { fontSize: '22px', color: PALETTE.ink, fontStyle: 'bold' }));
+    this.uiLayer.add(this.add.text(34, 52, this.level.title, { fontSize: '13px', color: PALETTE.mutedInk }));
+    this.countdownText = this.add.text(222, 25, formatCountdown(this.countdownSeconds), { fontSize: '25px', color: PALETTE.ink, fontStyle: 'bold' });
     this.uiLayer.add(this.countdownText);
-    this.uiLayer.add(this.add.text(318, 28, `${this.state.archivedCount / 3}/${this.level.cards.length / 3}组`, { fontSize: '16px', color: '#45382d', fontStyle: 'bold' }));
 
-    const button = this.add.rectangle(22, 610, 142, 38, 0xfffbf3, 1).setOrigin(0).setStrokeStyle(2, 0xd0bda6).setInteractive({ useHandCursor: true });
-    const label = this.add.text(34, 620, LAYOUT_LABELS[this.layoutKind], { fontSize: '14px', color: PALETTE.ink, fontStyle: 'bold' });
+    const button = this.add.image(22, 606, UI_ASSETS.modeTicket).setOrigin(0).setDisplaySize(154, 42).setInteractive({ useHandCursor: true });
+    const label = this.add.text(38, 618, LAYOUT_LABELS[this.layoutKind], { fontSize: '14px', color: '#fff8ed', fontStyle: 'bold' });
     button.on('pointerdown', () => {
       if (this.state.locked) return;
       this.toggleDropdown();
@@ -226,6 +227,7 @@ export class GameScene extends Phaser.Scene {
       if (result.archivedCardIds.length === 3) {
         this.playArchiveMerge(result.archivedCardIds, visualTray, () => {
           this.recordShelfReveals(result.archivedCardIds, result.state);
+          this.toastMessage = `归档完成 ${result.state.archivedCount / 3}/${this.level.cards.length / 3}`;
           this.state = setLocked(result.state, false);
           this.render();
         });
@@ -251,8 +253,9 @@ export class GameScene extends Phaser.Scene {
   private flyCardToTray(asset: string, layoutCard: LayoutCard, trayIndex: number, onComplete: () => void): void {
     const startX = layoutCard.x;
     const startY = layoutCard.y;
-    const targetX = 26 + Math.min(trayIndex, this.state.slotCount - 1) * 51 + 4;
-    const targetY = 694;
+    const target = getTrayImagePosition(Math.min(trayIndex, this.state.slotCount - 1));
+    const targetX = target.x;
+    const targetY = target.y;
 
     const flyer = this.add.container(startX, startY).setDepth(9999);
     flyer.add(this.add.rectangle(4, 5, layoutCard.width, layoutCard.height, PALETTE.cardShadow, 0.22).setOrigin(0));
@@ -388,7 +391,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private playArchiveBurst(x: number, y: number): void {
-    this.cameras.main.shake(90, 0.003);
+    this.triggerHapticFeedback();
     for (let index = 0; index < ANIMATION.burstParticleCount; index++) {
       const angle = (Math.PI * 2 * index) / ANIMATION.burstParticleCount;
       const radius = 18 + (index % 3) * 6;
@@ -423,18 +426,25 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private triggerHapticFeedback(): void {
+    if ('vibrate' in navigator) navigator.vibrate(35);
+  }
+
   private drawTray(): void {
-    this.uiLayer.add(this.add.rectangle(16, 656, GAME_WIDTH - 32, 84, PALETTE.tray, 1).setOrigin(0));
-    this.uiLayer.add(this.add.text(26, 664, `待归档区 ${this.state.tray.length}/${this.state.slotCount}`, { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' }));
+    this.uiLayer.add(this.add.rectangle(ARCHIVE_PANEL.x - 6, ARCHIVE_PANEL.y + 8, ARCHIVE_PANEL.width + 12, ARCHIVE_PANEL.height, 0x8f806d, 0.18).setOrigin(0));
+    this.uiLayer.add(this.add.rectangle(ARCHIVE_PANEL.x, ARCHIVE_PANEL.y, ARCHIVE_PANEL.width, ARCHIVE_PANEL.height, 0xf8f1e7, 0.96).setOrigin(0).setStrokeStyle(2, 0xd4c5b2));
+    this.uiLayer.add(this.add.text(ARCHIVE_PANEL.x + 10, ARCHIVE_PANEL.y + 9, '待归档区', { fontSize: '14px', color: '#4b4036', fontStyle: 'bold' }));
 
     for (let index = 0; index < this.state.slotCount; index++) {
-      const x = 26 + index * 51;
-      const y = 690;
-      this.uiLayer.add(this.add.rectangle(x, y, 46, 42, PALETTE.traySlot, 1).setOrigin(0).setStrokeStyle(1, 0xd9cbbb));
+      const x = ARCHIVE_PANEL.x + 10 + index * (ARCHIVE_PANEL.slotWidth + ARCHIVE_PANEL.slotGap);
+      const y = ARCHIVE_PANEL.slotY;
+      this.uiLayer.add(this.add.rectangle(x, y, ARCHIVE_PANEL.slotWidth, ARCHIVE_PANEL.slotHeight, 0xe8dccb, 1).setOrigin(0).setStrokeStyle(2, 0xbdae99));
+      this.uiLayer.add(this.add.circle(x + ARCHIVE_PANEL.slotWidth / 2, y + 8, 8, 0xc8b9a6, 0.6));
       const cardId = this.state.tray[index];
       const card = this.state.cards.find((item) => item.id === cardId);
       if (card) {
-        this.uiLayer.add(this.add.image(x + 4, y + 4, card.asset).setOrigin(0).setDisplaySize(38, 34));
+        this.uiLayer.add(this.add.rectangle(x + 4, y + 4, ARCHIVE_PANEL.slotWidth - 8, ARCHIVE_PANEL.slotWidth - 8, 0xffffff, 1).setOrigin(0).setStrokeStyle(1, 0xd0c1ad));
+        this.uiLayer.add(this.add.image(x + 6, y + 6, card.asset).setOrigin(0).setDisplaySize(ARCHIVE_PANEL.slotWidth - 12, ARCHIVE_PANEL.slotWidth - 12));
       }
     }
   }
@@ -505,8 +515,8 @@ export class GameScene extends Phaser.Scene {
 
 function getTrayImagePosition(index: number): { x: number; y: number } {
   return {
-    x: 26 + index * 51 + 4,
-    y: 694
+    x: ARCHIVE_PANEL.x + 10 + index * (ARCHIVE_PANEL.slotWidth + ARCHIVE_PANEL.slotGap) + 6,
+    y: ARCHIVE_PANEL.slotY + 6
   };
 }
 

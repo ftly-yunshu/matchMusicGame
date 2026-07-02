@@ -115,6 +115,9 @@ validateLevel(prototypeLevel);
 assertNoHorizontalTriples(prototypeLevel.cards.slice(0, 18), 6, 'prototype front layer');
 assertNoHorizontalTriples(prototypeLevel.cards.slice(18, 36), 6, 'prototype back layer');
 assertNoHorizontalTriples(prototypeLevel.cards, 6, 'prototype grid');
+const prototypeOverlap = buildLayout('overlap', createGameState(prototypeLevel).cards);
+assert(prototypeOverlap.some((card) => card.clickable), 'prototype overlap should expose some clickable covers');
+assert(prototypeOverlap.some((card) => !card.clickable), 'prototype overlap should include blocked covers for challenge');
 
 console.log('logic self-check passed');
 
