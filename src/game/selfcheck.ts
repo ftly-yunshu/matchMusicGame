@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { createGameState, setLocked, shuffleBoardCardsForClickables, tapCard, validateLevel } from './rules.ts';
+import { createGameState, getFinalAutoArchiveIds, getHintIds, restartUnarchivedCards, setLocked, shuffleBoardCardsForClickables, tapCard, validateLevel } from './rules.ts';
 import type { LevelConfig } from './types.ts';
 import { buildLayout } from '../layouts/index.ts';
 
@@ -38,6 +38,10 @@ for (const id of ids) {
 
 assert(state.tray.length === 0, 'three matching cards should archive and clear tray');
 assert(state.archivedCount === 3, 'archived count should increase by 3');
+assert(
+  getFinalAutoArchiveIds(state).sort().join(',') === ['b1', 'b2', 'b3'].join(','),
+  'auto finish should detect the last remaining triple'
+);
 
 for (const kind of ['grid', 'stack', 'shelf', 'overlap'] as const) {
   const layoutState = createGameState(level);
@@ -95,7 +99,8 @@ assert(
 let shelfLayerClickable = new Set(shelfLayerLayout.filter((card) => card.clickable).map((card) => card.cardId));
 shelfLayerState = tapCard(shelfLayerState, 'layer-01-a', shelfLayerClickable).state;
 shelfLayerLayout = buildLayout('shelf', shelfLayerState.cards);
-assert(!shelfLayerLayout.some((card) => card.cardId === 'layer-07-a'), 'shelf should not reveal back layer before front card archives');
+assert(shelfLayerLayout.some((card) => card.cardId === 'layer-07-a'), 'shelf should reveal corresponding back slot after front card enters tray');
+assert(shelfLayerLayout.length === 18, 'shelf should keep 18 visible slots after a single front card enters tray');
 
 shelfLayerClickable = new Set(shelfLayerLayout.filter((card) => card.clickable).map((card) => card.cardId));
 shelfLayerState = tapCard(shelfLayerState, 'layer-01-b', shelfLayerClickable).state;
@@ -115,9 +120,42 @@ validateLevel(prototypeLevel);
 assertNoHorizontalTriples(prototypeLevel.cards.slice(0, 18), 6, 'prototype front layer');
 assertNoHorizontalTriples(prototypeLevel.cards.slice(18, 36), 6, 'prototype back layer');
 assertNoHorizontalTriples(prototypeLevel.cards, 6, 'prototype grid');
+const prototypeStackState = createGameState(prototypeLevel);
+const prototypeStack = buildLayout('stack', prototypeStackState.cards);
+const prototypeStackClickable = new Set(prototypeStack.filter((card) => card.clickable).map((card) => card.cardId));
+assert(prototypeStackClickable.size >= 10, 'prototype stack should expose at least ten clickable covers');
+assert(getHintIds(prototypeStackState, prototypeStackClickable).length >= 3, 'prototype stack should expose a playable triple path');
 const prototypeOverlap = buildLayout('overlap', createGameState(prototypeLevel).cards);
 assert(prototypeOverlap.some((card) => card.clickable), 'prototype overlap should expose some clickable covers');
 assert(prototypeOverlap.some((card) => !card.clickable), 'prototype overlap should include blocked covers for challenge');
+
+let restartState = createGameState(level);
+for (const id of ids) {
+  restartState = tapCard(restartState, id, allClickable).state;
+}
+restartState = tapCard(restartState, 'b1', allClickable).state;
+restartState = restartUnarchivedCards(restartState);
+assert(restartState.archivedCount === 3, 'restart should preserve archived progress');
+assert(restartState.tray.length === 0, 'restart should clear tray');
+assert(restartState.status === 'playing', 'restart should restore playing status');
+assert(restartState.cards.filter((card) => card.matchId === 'b').every((card) => card.status === 'board'), 'restart should return unarchived tray cards to board');
+
+const diverseRestartLevel = createDiverseRestartLevel();
+let diverseRestartState = createGameState(diverseRestartLevel);
+diverseRestartState = tapCard(diverseRestartState, 'ra1', new Set(diverseRestartState.cards.map((card) => card.id))).state;
+const beforeRestartIds = diverseRestartState.cards.map((card) => card.id);
+const beforeRestartMatchIds = diverseRestartState.cards.map((card) => card.matchId);
+diverseRestartState = restartUnarchivedCards(diverseRestartState);
+assert(diverseRestartState.tray.length === 0, 'restart scatter should clear tray');
+assert(diverseRestartState.cards.every((card) => card.status === 'board'), 'restart scatter should return every unarchived card to board');
+assert(
+  diverseRestartState.cards.every((card, index) => card.id !== beforeRestartIds[index]),
+  'restart scatter should move every unarchived card away from its original slot'
+);
+assert(
+  diverseRestartState.cards.every((card, index) => card.matchId !== beforeRestartMatchIds[index]),
+  'restart scatter should avoid leaving the same cover type in its original slot when possible'
+);
 
 console.log('logic self-check passed');
 
@@ -139,6 +177,25 @@ function createLayeredShelfLevel(): LevelConfig {
     title: 'shelf layer',
     slotCount: 7,
     cards
+  };
+}
+
+function createDiverseRestartLevel(): LevelConfig {
+  return {
+    id: 'restart-scatter',
+    title: 'restart scatter',
+    slotCount: 7,
+    cards: [
+      { id: 'ra1', matchId: 'ra', title: 'A', asset: '' },
+      { id: 'ra2', matchId: 'ra', title: 'A', asset: '' },
+      { id: 'ra3', matchId: 'ra', title: 'A', asset: '' },
+      { id: 'rb1', matchId: 'rb', title: 'B', asset: '' },
+      { id: 'rb2', matchId: 'rb', title: 'B', asset: '' },
+      { id: 'rb3', matchId: 'rb', title: 'B', asset: '' },
+      { id: 'rc1', matchId: 'rc', title: 'C', asset: '' },
+      { id: 'rc2', matchId: 'rc', title: 'C', asset: '' },
+      { id: 'rc3', matchId: 'rc', title: 'C', asset: '' }
+    ]
   };
 }
 

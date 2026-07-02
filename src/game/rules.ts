@@ -38,6 +38,18 @@ export function setLocked(state: GameState, locked: boolean): GameState {
   return { ...state, locked };
 }
 
+export function getFinalAutoArchiveIds(state: GameState): string[] {
+  if (state.status !== 'playing') return [];
+
+  const unarchived = state.cards.filter((card) => card.status !== 'archived');
+  if (unarchived.length !== 3) return [];
+
+  const matchId = unarchived[0]?.matchId;
+  if (!matchId || unarchived.some((card) => card.matchId !== matchId)) return [];
+
+  return unarchived.map((card) => card.id);
+}
+
 export function tapCard(state: GameState, cardId: string, clickableCardIds: Set<string>): TapResult {
   if (state.status !== 'playing') {
     return { state, archivedCardIds: [], blockedReason: 'not-playing' };
@@ -70,15 +82,15 @@ export function tapCard(state: GameState, cardId: string, clickableCardIds: Set<
       cards: next.cards.map((item) => (archiveSet.has(item.id) ? { ...item, status: 'archived' } : item)),
       tray: next.tray.filter((id) => !archiveSet.has(id)),
       archivedCount: next.archivedCount + 3,
-      message: '归档完成'
+      message: '已归档'
     };
   }
 
   const boardRemaining = next.cards.some((item) => item.status === 'board');
   if (!boardRemaining) {
-    next = { ...next, status: 'won', message: '榜单刷新完成' };
+    next = { ...next, status: 'won', message: '刷新完成' };
   } else if (next.tray.length >= next.slotCount) {
-    next = { ...next, status: 'failed', message: '待归档区已满' };
+    next = { ...next, status: 'failed', message: '槽位已满' };
   }
 
   return { state: next, movedCardId: cardId, archivedCardIds: archiveIds };
@@ -90,7 +102,7 @@ export function withDeadlockCheck(state: GameState, clickableCardIds: Set<string
   return {
     ...state,
     deadlocked,
-    message: deadlocked ? '没有安全归档路径，可使用重排或系统归档' : state.message
+    message: deadlocked ? '无可归档，请重排' : state.message
   };
 }
 
@@ -112,13 +124,6 @@ export function getHintIds(state: GameState, clickableCardIds: Set<string>): str
   return [...byMatch.values()].find((ids) => ids.length >= 3)?.slice(0, 3) ?? candidates.slice(0, 1).map((card) => card.id);
 }
 
-export function autoArchiveOne(state: GameState, clickableCardIds: Set<string>): GameState {
-  const hintIds = getHintIds(state, clickableCardIds);
-  const first = hintIds[0];
-  if (!first) return state;
-  return tapCard(state, first, clickableCardIds).state;
-}
-
 export function shuffleBoardCards(state: GameState): GameState {
   const boardCards = state.cards.filter((card) => card.status === 'board');
   const reversed = [...boardCards].reverse();
@@ -126,9 +131,78 @@ export function shuffleBoardCards(state: GameState): GameState {
   return {
     ...state,
     cards: state.cards.map((card) => (card.status === 'board' ? reversed[index++] : card)),
-    message: '整理台已重排',
+    message: '已重排',
     deadlocked: false
   };
+}
+
+export function restartUnarchivedCards(state: GameState): GameState {
+  const unarchived = state.cards.filter((card) => card.status !== 'archived');
+  const shuffled = scatterUnarchivedCards(unarchived);
+  let index = 0;
+
+  return {
+    ...state,
+    cards: state.cards.map((card) => {
+      if (card.status === 'archived') return card;
+      const next = shuffled[index++];
+      return { ...next, status: 'board' };
+    }),
+    tray: [],
+    status: 'playing',
+    message: '已重新整理',
+    locked: false,
+    deadlocked: false
+  };
+}
+
+function scatterUnarchivedCards<T extends { id: string; matchId: string }>(cards: T[]): T[] {
+  if (cards.length <= 1) return cards;
+
+  let best = [...cards].reverse();
+  let bestScore = scoreScatter(cards, best);
+  const steps = [7, 5, 11, 13, 3, 2, 1].filter((step) => gcd(step, cards.length) === 1);
+
+  for (let offset = 1; offset < cards.length; offset++) {
+    for (const step of steps) {
+      const candidate: T[] = [];
+      let cursor = offset;
+      for (let index = 0; index < cards.length; index++) {
+        candidate.push(cards[cursor]);
+        cursor = (cursor + step) % cards.length;
+      }
+
+      const score = scoreScatter(cards, candidate);
+      if (score < bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+      if (bestScore === 0) return best;
+    }
+  }
+
+  return best;
+}
+
+function scoreScatter<T extends { id: string; matchId: string }>(original: T[], candidate: T[]): number {
+  let sameId = 0;
+  let sameMatch = 0;
+  for (let index = 0; index < original.length; index++) {
+    if (original[index].id === candidate[index].id) sameId++;
+    if (original[index].matchId === candidate[index].matchId) sameMatch++;
+  }
+  return sameId * 100 + sameMatch;
+}
+
+function gcd(a: number, b: number): number {
+  let left = Math.abs(a);
+  let right = Math.abs(b);
+  while (right !== 0) {
+    const next = left % right;
+    left = right;
+    right = next;
+  }
+  return left;
 }
 
 export function shuffleBoardCardsForClickables(state: GameState, clickableCardIds: Set<string>): GameState {
@@ -141,7 +215,7 @@ export function shuffleBoardCardsForClickables(state: GameState, clickableCardId
   if (!target) {
     return {
       ...state,
-      message: '当前没有可重排出的三消组合',
+      message: '暂无可重排组合',
       deadlocked: false
     };
   }
@@ -163,7 +237,7 @@ export function shuffleBoardCardsForClickables(state: GameState, clickableCardId
       if (card.status !== 'board') return card;
       return targetPositions.has(index) ? picked[pickedIndex++] : rest[restIndex++];
     }),
-    message: '整理台已重排，顶部有可归档组合',
+    message: '已重排，可归档',
     deadlocked: false
   };
 }

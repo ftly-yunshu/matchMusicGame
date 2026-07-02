@@ -1,38 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
   <defs>
-    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f7f1e8"/>
-      <stop offset="1" stop-color="#eadac6"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8f1ff"/>
+      <stop offset=".52" stop-color="#edf9ff"/>
+      <stop offset="1" stop-color="#bfe7ff"/>
     </linearGradient>
-    <pattern id="micro" width="18" height="18" patternUnits="userSpaceOnUse">
-      <path d="M18 0H0V18" fill="none" stroke="#cabda9" stroke-width=".65" opacity=".28"/>
+    <pattern id="gingham" width="54" height="54" patternUnits="userSpaceOnUse" patternTransform="rotate(45 27 27)">
+      <rect width="54" height="54" fill="none"/>
+      <rect width="27" height="54" fill="#ffffff" opacity=".32"/>
+      <rect width="54" height="27" fill="#ffffff" opacity=".24"/>
     </pattern>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" fill="none" stroke="#8ec8ee" stroke-width="1" opacity=".24"/>
+    </pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#7bbde8" flood-opacity=".2"/>
+    </filter>
   </defs>
-  <rect width="390" height="844" fill="url(#paper)"/>
-  <rect width="390" height="844" fill="url(#micro)" opacity=".62"/>
-  <rect x="16" y="94" width="358" height="506" rx="10" fill="#fff8ed" stroke="#d6c5ad" stroke-width="2"/>
-  <g opacity=".45" stroke="#b7aa98" stroke-width="1.2">
-    <path d="M75 94v506M135 94v506M195 94v506M255 94v506M315 94v506"/>
-    <path d="M16 178h358M16 262h358M16 346h358M16 430h358M16 514h358"/>
+  <rect width="390" height="844" fill="url(#sky)"/>
+  <rect width="390" height="844" fill="url(#gingham)" opacity=".88"/>
+  <rect width="390" height="844" fill="url(#grid)" opacity=".62"/>
+  <g opacity=".6">
+    <circle cx="54" cy="142" r="4" fill="#70bdf0"/>
+    <circle cx="336" cy="150" r="4" fill="#70bdf0"/>
+    <path d="M42 212l8 10 8-10" fill="#77c2f2"/>
+    <path d="M332 218l8 10 8-10" fill="#77c2f2"/>
+    <path d="M42 312c16-18 30 18 46 0M42 312c16 18 30-18 46 0" fill="none" stroke="#75bff0" stroke-width="4" stroke-linecap="round"/>
+    <path d="M304 312c16-18 30 18 46 0M304 312c16 18 30-18 46 0" fill="none" stroke="#75bff0" stroke-width="4" stroke-linecap="round"/>
   </g>
-  <g opacity=".92">
-    <rect x="12" y="112" width="34" height="62" rx="8" fill="#f4efe6" stroke="#dfd2bf"/>
-    <rect x="19" y="120" width="20" height="20" rx="3" fill="#21725e"/>
-    <path d="M25 124v12l10-6z" fill="#fff8ed"/>
-    <rect x="19" y="146" width="20" height="20" rx="3" fill="#d9472d"/>
-    <circle cx="29" cy="156" r="6" fill="#fff8ed"/>
-    <text x="29" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#4e463d" font-weight="700">REC</text>
+  <g opacity=".42" stroke="#94cdec" stroke-width="1.2">
+    <path d="M81 112v480M138 112v480M195 112v480M252 112v480M309 112v480"/>
+    <path d="M24 192h342M24 272h342M24 352h342M24 432h342M24 512h342"/>
   </g>
-  <g opacity=".92">
-    <rect x="334" y="108" width="40" height="116" rx="8" fill="#d8b85c" stroke="#b99735"/>
-    <path d="M344 139h18M344 164h18M344 189h18" stroke="#5b513f" stroke-width="1.4"/>
-    <path d="M345 178l21 9" stroke="#101010" stroke-width="3"/>
-    <text x="354" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111">+</text>
-    <text x="354" y="211" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111">-</text>
-  </g>
-  <rect x="18" y="742" width="354" height="78" rx="12" fill="#d8a077" opacity=".44"/>
-  <rect x="26" y="756" width="96" height="8" fill="#e75524"/>
-  <rect x="122" y="756" width="116" height="8" fill="#2d96c9"/>
-  <rect x="238" y="756" width="78" height="8" fill="#21725e"/>
-  <rect x="316" y="756" width="42" height="8" fill="#bc1747"/>
 </svg>

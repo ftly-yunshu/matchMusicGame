@@ -6,21 +6,21 @@ export const CARD_HEIGHT = 58;
 export const VISIBLE_RATIO_THRESHOLD = 0.6;
 
 export const PALETTE = {
-  page: 0xf4eadb,
-  pageShadow: 0xd2bda2,
-  board: 0xfff7e8,
-  boardLine: 0xdfc7a7,
-  ink: '#24170f',
-  mutedInk: '#765f47',
-  shelfTop: 0xa97d51,
-  shelfFront: 0x6b4a30,
+  page: 0xdaf2ff,
+  pageShadow: 0x8fc6e8,
+  board: 0xf6fbff,
+  boardLine: 0xaed9f4,
+  ink: '#2a5f91',
+  mutedInk: '#6ca6cf',
+  shelfTop: 0xaedcff,
+  shelfFront: 0x6aaee0,
   cardFace: 0xfffbf4,
-  cardShadow: 0x6f5136,
-  accent: 0x2f6fed,
-  archive: 0xffc857,
-  danger: 0xd94a45,
-  tray: 0x554a40,
-  traySlot: 0x82786e
+  cardShadow: 0x6aaee0,
+  accent: 0x66bdf2,
+  archive: 0x8ed8ff,
+  danger: 0xd94a7f,
+  tray: 0xc9ebff,
+  traySlot: 0xe8f7ff
 } as const;
 
 export const ANIMATION = {
@@ -36,19 +36,37 @@ export const ANIMATION = {
 export const UI_ASSETS = {
   studioBackground: 'assets/ui/studio-background.svg',
   headerConsole: 'assets/ui/header-console.svg',
-  modeTicket: 'assets/ui/mode-ticket.svg',
-  tempoMeter: 'assets/ui/tempo-meter.svg'
+  tempoMeter: 'assets/ui/tempo-meter.svg',
+  toolHint: 'assets/ui/tool-hint.svg',
+  toolShuffle: 'assets/ui/tool-shuffle.svg',
+  toolRestart: 'assets/ui/tool-restart.svg'
+} as const;
+
+export const UI_FRAME = {
+  x: 24,
+  width: 342,
+  headerY: 16,
+  headerHeight: 64,
+  boardX: 16,
+  boardY: 104,
+  boardWidth: 358,
+  boardHeight: 496,
+  toastY: 628,
+  toolY: 756,
+  toolWidth: 94,
+  toolHeight: 56,
+  toolGap: 30
 } as const;
 
 export const ARCHIVE_PANEL = {
-  x: 24,
-  y: 636,
-  width: 342,
-  height: 104,
-  slotWidth: 42,
-  slotHeight: 68,
-  slotGap: 5,
-  slotY: 660
+  x: 32,
+  y: 640,
+  width: 326,
+  height: 74,
+  slotWidth: 52,
+  slotHeight: 52,
+  slotGap: -7,
+  slotY: 651
 } as const;
 
 export const OVERLAP_LAYOUT = {

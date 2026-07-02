@@ -19,7 +19,7 @@ export function buildShelfLayout(cards: CardState[]): LayoutCard[] {
     if (card.status !== 'board') return [];
     if (index >= SHELF_VISIBLE_SLOTS) {
       const frontCard = cards[index - SHELF_VISIBLE_SLOTS];
-      if (frontCard?.status !== 'archived') return [];
+      if (frontCard?.status === 'board') return [];
     }
 
     const slotIndex = slots[index % SHELF_VISIBLE_SLOTS] ?? index % SHELF_VISIBLE_SLOTS;

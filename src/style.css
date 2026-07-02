@@ -1,14 +1,131 @@
 html,
 body,
 #app {
+  position: relative;
   width: 100%;
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #17130f;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42) 25%, transparent 25%) 0 0 / 42px 42px,
+    linear-gradient(225deg, rgba(255, 255, 255, 0.42) 25%, transparent 25%) 0 0 / 42px 42px,
+    #d9f2ff;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
 
 canvas {
   display: block;
+  image-rendering: auto;
+}
+
+#game-ui-overlay {
+  position: absolute;
+  --ui-scale: 1;
+  width: 390px;
+  height: 844px;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 5;
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #2a5f91;
+}
+
+.hud-title {
+  position: absolute;
+  left: calc(40px * var(--ui-scale));
+  top: calc(27px * var(--ui-scale));
+  font-size: calc(22px * var(--ui-scale));
+  line-height: calc(30px * var(--ui-scale));
+  font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+.hud-subtitle {
+  position: absolute;
+  left: calc(40px * var(--ui-scale));
+  top: calc(59px * var(--ui-scale));
+  font-size: calc(13px * var(--ui-scale));
+  line-height: calc(20px * var(--ui-scale));
+  font-weight: 600;
+  white-space: nowrap;
+  color: #6ca6cf;
+  letter-spacing: 0;
+}
+
+.hud-timer {
+  position: absolute;
+  left: calc(242px * var(--ui-scale));
+  top: calc(32px * var(--ui-scale));
+  width: calc(96px * var(--ui-scale));
+  font-size: calc(25px * var(--ui-scale));
+  line-height: calc(30px * var(--ui-scale));
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-toast {
+  position: absolute;
+  left: calc(24px * var(--ui-scale));
+  top: calc(628px * var(--ui-scale));
+  width: calc(342px * var(--ui-scale));
+  height: calc(32px * var(--ui-scale));
+  border-radius: 0;
+  background: rgba(51, 126, 189, 0.9);
+  color: #fff8ec;
+  box-shadow: inset 0 0 0 calc(2px * var(--ui-scale)) rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(14px * var(--ui-scale));
+  line-height: calc(18px * var(--ui-scale));
+  font-weight: 800;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.game-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.layout-menu {
+  position: absolute;
+  left: calc(176px * var(--ui-scale));
+  top: calc(88px * var(--ui-scale));
+  width: calc(190px * var(--ui-scale));
+  padding: calc(10px * var(--ui-scale)) calc(8px * var(--ui-scale));
+  box-sizing: border-box;
+  background: #ffffff;
+  border: calc(1px * var(--ui-scale)) solid #8fcaf1;
+  display: none;
+  pointer-events: auto;
+}
+
+.layout-menu.is-open {
+  display: block;
+}
+
+.layout-menu button {
+  width: calc(174px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
+  border: 0;
+  background: transparent;
+  color: #2a5f91;
+  font: 700 calc(13px * var(--ui-scale))/calc(28px * var(--ui-scale)) Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-align: left;
+  padding: 0 calc(8px * var(--ui-scale));
+  margin: 0 0 calc(4px * var(--ui-scale));
+  cursor: pointer;
+}
+
+.layout-menu button.is-active {
+  background: #e9f0ff;
 }

@@ -1,7 +1,7 @@
-import { CARD_HEIGHT, CARD_WIDTH } from '../config/constants.ts';
+import { CARD_HEIGHT, CARD_WIDTH, GAME_WIDTH } from '../config/constants.ts';
 import type { CardState, LayoutCard } from '../game/types.ts';
 import { applyTopOnlyClickability } from './aabb.ts';
-import { seededOffset, shuffledSlots } from './deterministic.ts';
+import { seededOffset } from './deterministic.ts';
 
 export function buildStackLayout(cards: CardState[]): LayoutCard[] {
   const positions = buildPyramidPositions(cards.length);
@@ -25,33 +25,34 @@ export function buildStackLayout(cards: CardState[]): LayoutCard[] {
 }
 
 function buildPyramidPositions(count: number): Array<{ x: number; y: number; z: number }> {
-  const rowCounts = count > 24 ? [4, 6, 8, 8, 6, 4] : [3, 5, 6, 4];
-  const xStep = 41;
-  const yStep = 52;
-  const startY = count > 24 ? 166 : 200;
-  const order = shuffledSlots(count, 307);
+  const layers = count > 24
+    ? [
+      { rows: [4, 5, 5], startY: 214, xStep: 66, yStep: 68, zBase: 10, offsetX: 0 },
+      { rows: [4, 4, 4], startY: 188, xStep: 66, yStep: 68, zBase: 50, offsetX: 4 },
+      { rows: [3, 4, 3], startY: 150, xStep: 68, yStep: 70, zBase: 100, offsetX: 0 }
+    ]
+    : [
+      { rows: [3, 4], startY: 220, xStep: 66, yStep: 68, zBase: 10, offsetX: 0 },
+      { rows: [3, 3], startY: 190, xStep: 68, yStep: 70, zBase: 70, offsetX: 0 }
+    ];
   const positions: Array<{ x: number; y: number; z: number }> = [];
-  const centerX = GAME_BOARD_WIDTH / 2;
-  const centerY = startY + ((rowCounts.length - 1) * yStep) / 2 + CARD_HEIGHT / 2;
 
-  for (let row = 0; row < rowCounts.length; row++) {
-    const rowCount = rowCounts[row];
-    const rowWidth = CARD_WIDTH + (rowCount - 1) * xStep;
-    const startX = Math.round((GAME_BOARD_WIDTH - rowWidth) / 2);
-    for (let col = 0; col < rowCount; col++) {
-      const slot = positions.length;
-      const randomIndex = order[slot] ?? slot;
-      const x = startX + col * xStep + seededOffset(randomIndex, 313, 10);
-      const y = startY + row * yStep + seededOffset(randomIndex, 317, 8);
-      const dx = Math.abs(x + CARD_WIDTH / 2 - centerX) / xStep;
-      const dy = Math.abs(y + CARD_HEIGHT / 2 - centerY) / yStep;
-      const z = Math.round(100 - (dx + dy) * 10);
-      positions.push({ x, y, z });
-      if (positions.length === count) return positions;
+  for (const layer of layers) {
+    for (let row = 0; row < layer.rows.length; row++) {
+      const rowCount = layer.rows[row];
+      const rowWidth = CARD_WIDTH + (rowCount - 1) * layer.xStep;
+      const startX = Math.round((GAME_WIDTH - rowWidth) / 2) + layer.offsetX;
+      for (let col = 0; col < rowCount; col++) {
+        const slot = positions.length;
+        const x = startX + col * layer.xStep + seededOffset(slot, 313, 6);
+        const y = layer.startY + row * layer.yStep + seededOffset(slot, 317, 5);
+        const centerBias = Math.abs(col - (rowCount - 1) / 2);
+        const z = layer.zBase + row * 4 + Math.round((rowCount - centerBias) * 2);
+        positions.push({ x, y, z });
+        if (positions.length === count) return positions;
+      }
     }
   }
 
   return positions;
 }
-
-const GAME_BOARD_WIDTH = 390;
