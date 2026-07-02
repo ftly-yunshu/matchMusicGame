@@ -1,12 +1,12 @@
 import type { CardState, LayoutCard } from '../game/types.ts';
 
-export const SHELF_START_X = 24;
-export const SHELF_START_Y = 126;
-export const SHELF_CARD_SIZE = 46;
-export const SHELF_GAP_X = 8;
-export const SHELF_GAP_Y = 66;
+export const SHELF_START_X = 17;
+export const SHELF_START_Y = 188;
+export const SHELF_CARD_SIZE = 56;
+export const SHELF_GAP_X = 4;
+export const SHELF_GAP_Y = 128;
 export const SHELF_PER_ROW = 6;
-export const SHELF_WIDTH = 342;
+export const SHELF_WIDTH = 370;
 export const SHELF_LAYER_ROWS = 3;
 export const SHELF_GRID_ROWS = 6;
 export const SHELF_VISIBLE_SLOTS = SHELF_PER_ROW * SHELF_LAYER_ROWS;

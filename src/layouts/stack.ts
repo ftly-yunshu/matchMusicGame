@@ -25,9 +25,9 @@ export function buildStackLayout(cards: CardState[]): LayoutCard[] {
 
 function buildPyramidPositions(count: number): Array<{ x: number; y: number; z: number }> {
   const rowCounts = count > 24 ? [4, 6, 8, 8, 6, 4] : [3, 5, 6, 4];
-  const xStep = 38;
-  const yStep = 44;
-  const startY = count > 24 ? 126 : 170;
+  const xStep = 41;
+  const yStep = 52;
+  const startY = count > 24 ? 166 : 200;
   const positions: Array<{ x: number; y: number; z: number }> = [];
   const centerX = GAME_BOARD_WIDTH / 2;
   const centerY = startY + ((rowCounts.length - 1) * yStep) / 2 + CARD_HEIGHT / 2;

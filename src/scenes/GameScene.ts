@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, LAYOUT_LABELS } from '../config/constants';
+import { ANIMATION, GAME_HEIGHT, GAME_WIDTH, LAYOUT_LABELS, PALETTE } from '../config/constants';
 import { autoArchiveOne, createGameState, getHintIds, setLocked, shuffleBoardCards, shuffleBoardCardsForClickables, tapCard, validateLevel, withDeadlockCheck } from '../game/rules';
 import type { GameState, LayoutCard, LayoutKind, LevelConfig } from '../game/types';
 import { buildLayout } from '../layouts';
-import { SHELF_CARD_SIZE, SHELF_GAP_Y, SHELF_GRID_ROWS, SHELF_LAYER_ROWS, SHELF_START_X, SHELF_START_Y, SHELF_VISIBLE_SLOTS, SHELF_WIDTH } from '../layouts/shelf';
+import { GRID_CARD_SIZE, GRID_GAP_Y, GRID_ROWS, GRID_START_X, GRID_START_Y, GRID_WIDTH } from '../layouts/grid';
+import { SHELF_CARD_SIZE, SHELF_GAP_Y, SHELF_LAYER_ROWS, SHELF_START_X, SHELF_START_Y, SHELF_VISIBLE_SLOTS, SHELF_WIDTH } from '../layouts/shelf';
 
 const LEVEL_KEY = 'test-level';
 const LAYOUTS: LayoutKind[] = ['grid', 'stack', 'shelf', 'overlap'];
@@ -19,6 +20,7 @@ export class GameScene extends Phaser.Scene {
   private hintIds = new Set<string>();
   private cardNodes = new Map<string, Phaser.GameObjects.Container>();
   private revealingCardIds = new Set<string>();
+  private playBoardEntrance = true;
   private countdownSeconds = 10;
   private countdownText?: Phaser.GameObjects.Text;
   private countdownEvent?: Phaser.Time.TimerEvent;
@@ -55,6 +57,7 @@ export class GameScene extends Phaser.Scene {
   private resetLevel(): void {
     this.hintIds.clear();
     this.revealingCardIds.clear();
+    this.playBoardEntrance = true;
     this.countdownSeconds = 10;
     this.countdownEvent?.remove(false);
     this.state = createGameState(this.level);
@@ -85,19 +88,25 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
-    this.backgroundLayer.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xf5efe6).setOrigin(0));
-    this.backgroundLayer.add(this.add.rectangle(16, 94, GAME_WIDTH - 32, 506, 0xfff8ec, 1).setOrigin(0).setStrokeStyle(2, 0xe2d0b8));
+    this.backgroundLayer.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, PALETTE.page).setOrigin(0));
+    this.backgroundLayer.add(this.add.rectangle(0, 0, GAME_WIDTH, 104, 0xe4b27b, 0.32).setOrigin(0));
+    this.backgroundLayer.add(this.add.rectangle(14, 92, GAME_WIDTH - 28, 512, PALETTE.pageShadow, 0.38).setOrigin(0));
+    this.backgroundLayer.add(this.add.rectangle(16, 94, GAME_WIDTH - 32, 506, PALETTE.board, 1).setOrigin(0).setStrokeStyle(2, PALETTE.boardLine));
+    for (let i = 0; i < 8; i++) {
+      this.backgroundLayer.add(this.add.rectangle(26 + i * 44, 112 + (i % 3) * 5, 20, 2, 0xe9d8be, 0.45).setOrigin(0));
+    }
   }
 
   private drawHud(): void {
-    this.uiLayer.add(this.add.text(22, 20, '今日推荐榜', { fontSize: '24px', color: '#221811', fontStyle: 'bold' }));
-    this.uiLayer.add(this.add.text(22, 52, this.level.title, { fontSize: '14px', color: '#6d5b49' }));
-    this.countdownText = this.add.text(214, 28, formatCountdown(this.countdownSeconds), { fontSize: '24px', color: '#241912', fontStyle: 'bold' });
+    this.uiLayer.add(this.add.text(22, 20, '今日推荐榜', { fontSize: '24px', color: PALETTE.ink, fontStyle: 'bold' }));
+    this.uiLayer.add(this.add.text(22, 52, this.level.title, { fontSize: '14px', color: PALETTE.mutedInk }));
+    this.uiLayer.add(this.add.rectangle(198, 20, 92, 42, 0xfff6e7, 1).setOrigin(0).setStrokeStyle(2, 0xd9b98f));
+    this.countdownText = this.add.text(214, 28, formatCountdown(this.countdownSeconds), { fontSize: '24px', color: PALETTE.ink, fontStyle: 'bold' });
     this.uiLayer.add(this.countdownText);
     this.uiLayer.add(this.add.text(318, 28, `${this.state.archivedCount / 3}/${this.level.cards.length / 3}组`, { fontSize: '16px', color: '#45382d', fontStyle: 'bold' }));
 
-    const button = this.add.rectangle(22, 610, 142, 38, 0xffffff, 1).setOrigin(0).setStrokeStyle(1, 0xd0bda6).setInteractive({ useHandCursor: true });
-    const label = this.add.text(34, 620, LAYOUT_LABELS[this.layoutKind], { fontSize: '14px', color: '#34251a', fontStyle: 'bold' });
+    const button = this.add.rectangle(22, 610, 142, 38, 0xfffbf3, 1).setOrigin(0).setStrokeStyle(2, 0xd0bda6).setInteractive({ useHandCursor: true });
+    const label = this.add.text(34, 620, LAYOUT_LABELS[this.layoutKind], { fontSize: '14px', color: PALETTE.ink, fontStyle: 'bold' });
     button.on('pointerdown', () => {
       if (this.state.locked) return;
       this.toggleDropdown();
@@ -111,8 +120,8 @@ export class GameScene extends Phaser.Scene {
     const boardCards = this.state.cards.filter((card) => card.status === 'board');
     boardCards.sort((a, b) => (byId.get(a.id)?.z ?? 0) - (byId.get(b.id)?.z ?? 0));
 
-    if (this.layoutKind === 'grid') this.drawShelves(SHELF_GRID_ROWS);
-    if (this.layoutKind === 'shelf') this.drawShelves(SHELF_LAYER_ROWS);
+    if (this.layoutKind === 'grid') this.drawShelves(GRID_ROWS, GRID_START_X, GRID_START_Y, GRID_GAP_Y, GRID_CARD_SIZE, GRID_WIDTH);
+    if (this.layoutKind === 'shelf') this.drawShelves(SHELF_LAYER_ROWS, SHELF_START_X, SHELF_START_Y, SHELF_GAP_Y, SHELF_CARD_SIZE, SHELF_WIDTH);
 
     for (const card of boardCards) {
       const layoutCard = byId.get(card.id);
@@ -120,15 +129,18 @@ export class GameScene extends Phaser.Scene {
       const node = this.createCardNode(card.id, card.asset, layoutCard);
       this.cardNodes.set(card.id, node);
       this.cardsLayer.add(node);
+      if (this.playBoardEntrance) this.playCardEntrance(node, layoutCard.z);
     }
     this.revealingCardIds.clear();
+    this.playBoardEntrance = false;
   }
 
-  private drawShelves(rows: number): void {
+  private drawShelves(rows: number, startX: number, startY: number, gapY: number, cardSize: number, width: number): void {
     for (let row = 0; row < rows; row++) {
-      const y = SHELF_START_Y + row * SHELF_GAP_Y + SHELF_CARD_SIZE - 2;
-      this.cardsLayer.add(this.add.rectangle(SHELF_START_X - 8, y, SHELF_WIDTH, 8, 0x9a7147, 1).setOrigin(0));
-      this.cardsLayer.add(this.add.rectangle(SHELF_START_X - 8, y + 8, SHELF_WIDTH, 3, 0x6f5136, 1).setOrigin(0));
+      const y = startY + row * gapY + cardSize - 2;
+      this.cardsLayer.add(this.add.rectangle(startX - 8, y + 10, width, 4, 0x3e2c1f, 0.18).setOrigin(0));
+      this.cardsLayer.add(this.add.rectangle(startX - 8, y, width, 8, PALETTE.shelfTop, 1).setOrigin(0));
+      this.cardsLayer.add(this.add.rectangle(startX - 8, y + 8, width, 4, PALETTE.shelfFront, 1).setOrigin(0));
     }
   }
 
@@ -139,16 +151,18 @@ export class GameScene extends Phaser.Scene {
     container.setInteractive(new Phaser.Geom.Rectangle(0, 0, layoutCard.width, layoutCard.height), Phaser.Geom.Rectangle.Contains);
 
     const blocked = !layoutCard.clickable;
-    const frameColor = this.hintIds.has(cardId) ? 0xffd36a : 0xefe4d1;
-    const bg = this.add.rectangle(0, 0, layoutCard.width, layoutCard.height, blocked ? 0x8e867c : 0xffffff, 1).setOrigin(0).setStrokeStyle(3, frameColor);
+    const hinted = this.hintIds.has(cardId);
+    const frameColor = hinted ? PALETTE.archive : 0xe7dac8;
+    const shadow = this.add.rectangle(4, 5, layoutCard.width, layoutCard.height, PALETTE.cardShadow, 0.24).setOrigin(0);
+    const bg = this.add.rectangle(0, 0, layoutCard.width, layoutCard.height, blocked ? 0x8e867c : PALETTE.cardFace, 1).setOrigin(0).setStrokeStyle(hinted ? 4 : 2, frameColor);
     const image = this.add.image(5, 5, asset).setOrigin(0).setDisplaySize(layoutCard.width - 10, layoutCard.width - 10);
-    const tag = this.add.text(5, 4, blocked ? 'LOCK' : 'HOT', { fontSize: '8px', color: '#ffffff', backgroundColor: blocked ? '#555555' : '#df4b38', padding: { x: 3, y: 1 } });
+    const tag = this.add.text(5, 4, blocked ? 'LOCK' : 'HOT', { fontSize: '8px', color: '#ffffff', backgroundColor: blocked ? '#555555' : '#d94a45', padding: { x: 3, y: 1 } });
 
     if (blocked) {
       container.setAlpha(0.72);
       image.setTint(0x777777);
     }
-    container.add([bg, image, tag]);
+    container.add([shadow, bg, image, tag]);
 
     if (this.revealingCardIds.has(cardId)) {
       const targetAlpha = container.alpha;
@@ -158,8 +172,8 @@ export class GameScene extends Phaser.Scene {
         targets: container,
         alpha: targetAlpha,
         scale: 1,
-        duration: 220,
-        ease: 'Cubic.easeOut'
+        duration: ANIMATION.revealMs,
+        ease: 'Back.easeOut'
       });
     }
 
@@ -207,6 +221,7 @@ export class GameScene extends Phaser.Scene {
     const visualTray = [...this.state.tray, cardId];
     node.disableInteractive();
     node.setAlpha(0.28);
+    this.playTapSpark(layoutCard.x + layoutCard.width / 2, layoutCard.y + layoutCard.height / 2, 0x8bd3ff);
     this.flyCardToTray(card.asset, layoutCard, this.state.tray.length, () => {
       if (result.archivedCardIds.length === 3) {
         this.playArchiveMerge(result.archivedCardIds, visualTray, () => {
@@ -240,7 +255,8 @@ export class GameScene extends Phaser.Scene {
     const targetY = 694;
 
     const flyer = this.add.container(startX, startY).setDepth(9999);
-    flyer.add(this.add.rectangle(0, 0, layoutCard.width, layoutCard.height, 0xffffff, 1).setOrigin(0).setStrokeStyle(3, 0xffd36a));
+    flyer.add(this.add.rectangle(4, 5, layoutCard.width, layoutCard.height, PALETTE.cardShadow, 0.22).setOrigin(0));
+    flyer.add(this.add.rectangle(0, 0, layoutCard.width, layoutCard.height, 0xffffff, 1).setOrigin(0).setStrokeStyle(3, PALETTE.archive));
     flyer.add(this.add.image(5, 5, asset).setOrigin(0).setDisplaySize(layoutCard.width - 10, layoutCard.width - 10));
 
     this.tweens.add({
@@ -248,8 +264,9 @@ export class GameScene extends Phaser.Scene {
       x: targetX,
       y: targetY,
       scale: 0.78,
-      duration: 260,
-      ease: 'Cubic.easeOut',
+      angle: 3,
+      duration: ANIMATION.flyToTrayMs,
+      ease: 'Sine.easeInOut',
       onComplete: () => {
         flyer.destroy();
         onComplete();
@@ -273,7 +290,7 @@ export class GameScene extends Phaser.Scene {
       const position = getTrayImagePosition(index);
       const node = this.add.container(position.x, position.y).setDepth(10000);
       if (card) {
-        node.add(this.add.rectangle(0, 0, 38, 34, 0xffffff, 1).setOrigin(0).setStrokeStyle(2, 0xffd36a));
+        node.add(this.add.rectangle(0, 0, 38, 34, 0xffffff, 1).setOrigin(0).setStrokeStyle(2, PALETTE.archive));
         node.add(this.add.image(2, 2, card.asset).setOrigin(0).setDisplaySize(34, 30));
       }
       return node;
@@ -283,15 +300,16 @@ export class GameScene extends Phaser.Scene {
       targets: archiveNodes,
       x: target.x,
       y: target.y,
-      scale: 1.1,
-      duration: 180,
-      ease: 'Cubic.easeOut',
+      scale: 1.14,
+      duration: ANIMATION.mergeMs,
+      ease: 'Back.easeOut',
       onComplete: () => {
+        this.playArchiveBurst(target.x + 19, target.y + 17);
         this.tweens.add({
           targets: archiveNodes,
           alpha: 0,
           scale: 0.35,
-          duration: 140,
+          duration: ANIMATION.mergeFadeMs,
           ease: 'Cubic.easeIn',
           onComplete: () => {
             for (const node of archiveNodes) node.destroy();
@@ -313,7 +331,7 @@ export class GameScene extends Phaser.Scene {
       x: originX + 6,
       yoyo: true,
       repeat: 3,
-      duration: 42,
+      duration: ANIMATION.blockedShakeMs,
       onComplete: () => {
         node.x = originX;
         node.setAlpha(originAlpha);
@@ -336,14 +354,83 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private playCardEntrance(node: Phaser.GameObjects.Container, z: number): void {
+    const targetY = node.y;
+    node.setAlpha(0);
+    node.setY(targetY + 10);
+    node.setScale(0.94);
+    this.tweens.add({
+      targets: node,
+      alpha: 1,
+      y: targetY,
+      scale: 1,
+      duration: ANIMATION.cardEnterMs,
+      delay: Math.min(180, Math.max(0, z) * 8),
+      ease: 'Back.easeOut'
+    });
+  }
+
+  private playTapSpark(x: number, y: number, color: number): void {
+    for (let index = 0; index < 5; index++) {
+      const angle = (Math.PI * 2 * index) / 5;
+      const dot = this.add.circle(x, y, 2, color, 0.72).setDepth(9500);
+      this.tweens.add({
+        targets: dot,
+        x: x + Math.cos(angle) * 16,
+        y: y + Math.sin(angle) * 12,
+        alpha: 0,
+        scale: 0.2,
+        duration: 180,
+        ease: 'Cubic.easeOut',
+        onComplete: () => dot.destroy()
+      });
+    }
+  }
+
+  private playArchiveBurst(x: number, y: number): void {
+    this.cameras.main.shake(90, 0.003);
+    for (let index = 0; index < ANIMATION.burstParticleCount; index++) {
+      const angle = (Math.PI * 2 * index) / ANIMATION.burstParticleCount;
+      const radius = 18 + (index % 3) * 6;
+      const dot = this.add.circle(x, y, index % 2 === 0 ? 3 : 2, PALETTE.archive, 0.9).setDepth(10020);
+      this.tweens.add({
+        targets: dot,
+        x: x + Math.cos(angle) * radius,
+        y: y + Math.sin(angle) * radius,
+        alpha: 0,
+        scale: 0.3,
+        duration: 260,
+        ease: 'Cubic.easeOut',
+        onComplete: () => dot.destroy()
+      });
+    }
+
+    const text = this.add.text(x, y - 22, '归档!', {
+      fontSize: '16px',
+      color: '#fff5d8',
+      stroke: '#6b4a30',
+      strokeThickness: 3,
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(10030);
+    this.tweens.add({
+      targets: text,
+      y: y - 44,
+      alpha: 0,
+      scale: 1.18,
+      duration: 420,
+      ease: 'Cubic.easeOut',
+      onComplete: () => text.destroy()
+    });
+  }
+
   private drawTray(): void {
-    this.uiLayer.add(this.add.rectangle(16, 656, GAME_WIDTH - 32, 84, 0x5d554c, 1).setOrigin(0));
+    this.uiLayer.add(this.add.rectangle(16, 656, GAME_WIDTH - 32, 84, PALETTE.tray, 1).setOrigin(0));
     this.uiLayer.add(this.add.text(26, 664, `待归档区 ${this.state.tray.length}/${this.state.slotCount}`, { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' }));
 
     for (let index = 0; index < this.state.slotCount; index++) {
       const x = 26 + index * 51;
       const y = 690;
-      this.uiLayer.add(this.add.rectangle(x, y, 46, 42, 0x83796e, 1).setOrigin(0).setStrokeStyle(1, 0xd9cbbb));
+      this.uiLayer.add(this.add.rectangle(x, y, 46, 42, PALETTE.traySlot, 1).setOrigin(0).setStrokeStyle(1, 0xd9cbbb));
       const cardId = this.state.tray[index];
       const card = this.state.cards.find((item) => item.id === cardId);
       if (card) {
@@ -373,7 +460,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private addToolButton(x: number, y: number, text: string, onClick: () => void): void {
-    const button = this.add.rectangle(x, y, 86, 48, 0xfffbf3, 1).setOrigin(0).setStrokeStyle(1, 0xd1bfa8).setInteractive({ useHandCursor: true });
+    const button = this.add.rectangle(x, y, 86, 48, 0xfffbf3, 1).setOrigin(0).setStrokeStyle(2, 0xd1bfa8).setInteractive({ useHandCursor: true });
     const label = this.add.text(x + 12, y + 16, text, { fontSize: '13px', color: '#0d57d8', fontStyle: 'bold' });
     button.on('pointerdown', onClick);
     this.uiLayer.add([button, label]);
