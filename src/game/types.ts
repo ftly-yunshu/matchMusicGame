@@ -1,4 +1,4 @@
-export type LayoutKind = 'grid' | 'stack' | 'shelf' | 'overlap';
+export type LayoutKind = 'grid' | 'stack' | 'shelf' | 'overlap' | 'neon9';
 
 export type CardStatus = 'board' | 'tray' | 'archived';
 

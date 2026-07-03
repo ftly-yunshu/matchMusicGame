@@ -8,7 +8,8 @@ new Phaser.Game({
   parent: 'app',
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  backgroundColor: '#d9f2ff',
+  backgroundColor: 'rgba(0,0,0,0)',
+  transparent: true,
   render: {
     antialias: true,
     antialiasGL: true,

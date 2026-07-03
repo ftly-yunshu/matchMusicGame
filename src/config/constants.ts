@@ -35,6 +35,11 @@ export const ANIMATION = {
 
 export const UI_ASSETS = {
   studioBackground: 'assets/ui/studio-background.svg',
+  neonBackground: 'assets/ui/neon-background.png',
+  neonArchiveBar: 'assets/ui/neon-archive-bar.png',
+  neonToolHint: 'assets/ui/neon-tool-hint.png',
+  neonToolShuffle: 'assets/ui/neon-tool-shuffle.png',
+  neonToolRestart: 'assets/ui/neon-tool-restart.png',
   headerConsole: 'assets/ui/header-console.svg',
   tempoMeter: 'assets/ui/tempo-meter.svg',
   toolHint: 'assets/ui/tool-hint.svg',
@@ -86,5 +91,32 @@ export const LAYOUT_LABELS = {
   grid: '01 传统三消',
   stack: '02 多层堆叠',
   shelf: '03 唱片架',
-  overlap: '04 交错覆盖'
+  overlap: '04 交错覆盖',
+  neon9: '05 霓虹九宫格'
+} as const;
+
+export const NEON_LAYOUT = {
+  boardX: 45,
+  boardY: 198,
+  boardSize: 300,
+  cellSize: 96,
+  cellGap: 4,
+  visibleSlots: 9,
+  durationSeconds: 300,
+  itemTotal: 90,
+  albumKinds: 10,
+  trayX: 22,
+  trayY: 606,
+  trayWidth: 349,
+  trayHeight: 94,
+  traySlotSize: 43,
+  traySlotGap: 10.5,
+  traySlotStartX: 42,
+  traySlotY: 623,
+  toolX: 100,
+  toolY: 532,
+  toolSize: 54,
+  toolGap: 18,
+  menuX: 326,
+  menuY: 84
 } as const;

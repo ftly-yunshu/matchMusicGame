@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { createGameState, getFinalAutoArchiveIds, getHintIds, restartUnarchivedCards, setLocked, shuffleBoardCardsForClickables, tapCard, validateLevel } from './rules.ts';
+import { createGameState, getFinalAutoArchiveIds, getHintIds, restartUnarchivedCards, returnTrayCardToBoard, setLocked, shuffleBoardCardsForClickables, tapCard, validateLevel } from './rules.ts';
 import type { LevelConfig } from './types.ts';
 import { buildLayout } from '../layouts/index.ts';
 
@@ -43,10 +43,10 @@ assert(
   'auto finish should detect the last remaining triple'
 );
 
-for (const kind of ['grid', 'stack', 'shelf', 'overlap'] as const) {
+for (const kind of ['grid', 'stack', 'shelf', 'overlap', 'neon9'] as const) {
   const layoutState = createGameState(level);
   const layout = buildLayout(kind, layoutState.cards);
-  assert(layout.length === level.cards.length, `${kind} should place every board card`);
+  assert(layout.length === (kind === 'neon9' ? Math.min(9, level.cards.length) : level.cards.length), `${kind} should place expected board cards`);
   assert(layout.some((card) => card.clickable), `${kind} should expose at least one clickable card`);
 
   const stableTap = tapCard(layoutState, level.cards[0].id, new Set(layout.map((card) => card.cardId))).state;
@@ -73,6 +73,40 @@ for (const kind of ['grid', 'stack', 'shelf', 'overlap'] as const) {
     assert(finalLayout.every((card) => card.clickable), `${kind} final triple should never be stuck unclickable`);
   }
 }
+
+const neonLevel = createNeonFlowLevel();
+validateLevel(neonLevel);
+let neonState = createGameState(neonLevel);
+let neonLayout = buildLayout('neon9', neonState.cards);
+assert(neonLayout.length === 9, 'neon9 should initially expose exactly nine covers');
+assert(neonLayout.every((card) => card.clickable), 'neon9 visible covers should all be clickable');
+assert(neonLayout.some((card) => card.cardId === 'n00-a'), 'neon9 should expose the first card in slot 0');
+assert(!neonLayout.some((card) => card.cardId === 'n09-a'), 'neon9 should hide the next queued card in slot 0');
+
+const neonBefore = new Map(neonLayout.map((card) => [card.cardId, card]));
+neonState = tapCard(neonState, 'n00-a', new Set(neonLayout.map((card) => card.cardId))).state;
+neonLayout = buildLayout('neon9', neonState.cards);
+assert(neonLayout.length === 9, 'neon9 should keep nine visible covers after one tap');
+assert(neonLayout.some((card) => card.cardId === 'n09-a'), 'neon9 should reveal the next cover in the tapped slot');
+for (const card of neonLayout.filter((item) => item.cardId !== 'n09-a')) {
+  const before = neonBefore.get(card.cardId);
+  assert(Boolean(before), 'neon9 should not replace untouched visible slots after one tap');
+  assert(before?.x === card.x && before.y === card.y, 'neon9 should keep untouched visible slots fixed');
+}
+
+neonState = returnTrayCardToBoard(neonState, 'n00-a');
+neonLayout = buildLayout('neon9', neonState.cards);
+assert(neonState.tray.length === 0, 'neon9 tray undo should remove the card from tray');
+assert(neonLayout.some((card) => card.cardId === 'n00-a'), 'neon9 tray undo should restore the card to its original slot');
+assert(!neonLayout.some((card) => card.cardId === 'n09-a'), 'neon9 tray undo should cover the next queued card again');
+
+let neonFailState = createGameState(createNeonFailureLevel());
+let neonFailLayout = buildLayout('neon9', neonFailState.cards);
+for (const id of ['f1', 'f2', 'f3', 'f4', 'f5', 'f6']) {
+  neonFailState = tapCard(neonFailState, id, new Set(neonFailLayout.map((card) => card.cardId))).state;
+  neonFailLayout = buildLayout('neon9', neonFailState.cards);
+}
+assert(neonFailState.status === 'failed', 'neon9 six-slot tray should fail when full without an archive');
 
 let stackShuffleState = createGameState(level);
 stackShuffleState = tapCard(stackShuffleState, 'a1', allIds).state;
@@ -128,6 +162,13 @@ assert(getHintIds(prototypeStackState, prototypeStackClickable).length >= 3, 'pr
 const prototypeOverlap = buildLayout('overlap', createGameState(prototypeLevel).cards);
 assert(prototypeOverlap.some((card) => card.clickable), 'prototype overlap should expose some clickable covers');
 assert(prototypeOverlap.some((card) => !card.clickable), 'prototype overlap should include blocked covers for challenge');
+
+const neonPrototypeLevel = createNeonPrototypeLevel(prototypeLevel);
+validateLevel(neonPrototypeLevel);
+assert(neonPrototypeLevel.cards.length === 90, 'neon prototype should last longer with ninety cards');
+assert(buildLayout('neon9', createGameState(neonPrototypeLevel).cards).length === 9, 'neon prototype should still expose nine cards');
+assert(hasVisibleTriple(neonPrototypeLevel.cards.slice(0, 9)), 'neon prototype first layer should expose an easy triple');
+assert(hasVisibleTriple(neonPrototypeLevel.cards.slice(9, 18)), 'neon prototype second layer should expose an easy triple');
 
 let restartState = createGameState(level);
 for (const id of ids) {
@@ -199,6 +240,93 @@ function createDiverseRestartLevel(): LevelConfig {
   };
 }
 
+function createNeonFlowLevel(): LevelConfig {
+  const cards: LevelConfig['cards'] = [];
+  for (let index = 0; index < 18; index++) {
+    cards.push({
+      id: `n${index.toString().padStart(2, '0')}-a`,
+      matchId: `neon-${Math.floor(index / 3).toString().padStart(2, '0')}`,
+      title: `Neon ${index}`,
+      asset: ''
+    });
+  }
+
+  return {
+    id: 'neon-flow',
+    title: 'neon flow',
+    slotCount: 6,
+    cards
+  };
+}
+
+function createNeonFailureLevel(): LevelConfig {
+  return {
+    id: 'neon-failure',
+    title: 'neon failure',
+    slotCount: 6,
+    cards: [
+      { id: 'f1', matchId: 'fa', title: 'A', asset: '' },
+      { id: 'f2', matchId: 'fb', title: 'B', asset: '' },
+      { id: 'f3', matchId: 'fc', title: 'C', asset: '' },
+      { id: 'f4', matchId: 'fd', title: 'D', asset: '' },
+      { id: 'f5', matchId: 'fe', title: 'E', asset: '' },
+      { id: 'f6', matchId: 'ff', title: 'F', asset: '' },
+      { id: 'f7', matchId: 'fa', title: 'A', asset: '' },
+      { id: 'f8', matchId: 'fb', title: 'B', asset: '' },
+      { id: 'f9', matchId: 'fc', title: 'C', asset: '' },
+      { id: 'f10', matchId: 'fd', title: 'D', asset: '' },
+      { id: 'f11', matchId: 'fe', title: 'E', asset: '' },
+      { id: 'f12', matchId: 'ff', title: 'F', asset: '' },
+      { id: 'f13', matchId: 'fa', title: 'A', asset: '' },
+      { id: 'f14', matchId: 'fb', title: 'B', asset: '' },
+      { id: 'f15', matchId: 'fc', title: 'C', asset: '' },
+      { id: 'f16', matchId: 'fd', title: 'D', asset: '' },
+      { id: 'f17', matchId: 'fe', title: 'E', asset: '' },
+      { id: 'f18', matchId: 'ff', title: 'F', asset: '' }
+    ]
+  };
+}
+
+function createNeonPrototypeLevel(baseLevel: LevelConfig): LevelConfig {
+  const albumMap = new Map<string, LevelConfig['cards'][number]>();
+  for (const card of baseLevel.cards) {
+    if (!albumMap.has(card.matchId)) albumMap.set(card.matchId, card);
+  }
+
+  const albums = [...albumMap.values()].slice(0, 10);
+  const layerKinds = [
+    [0, 1, 2, 3, 0, 4, 5, 6, 0],
+    [7, 1, 8, 7, 2, 9, 7, 3, 4],
+    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [2, 3, 4, 5, 6, 7, 8, 9, 1],
+    [0, 2, 3, 4, 5, 6, 7, 8, 9],
+    [0, 1, 3, 4, 5, 6, 7, 8, 9],
+    [0, 1, 2, 4, 5, 6, 7, 8, 9],
+    [0, 1, 2, 3, 5, 6, 7, 8, 9],
+    [0, 1, 2, 3, 4, 5, 6, 8, 9],
+    [0, 1, 2, 3, 4, 5, 6, 8, 9]
+  ];
+  const cards: LevelConfig['cards'] = [];
+  for (const layer of layerKinds) {
+    for (const kind of layer) {
+      const album = albums[kind % albums.length];
+      cards.push({
+        id: `neon-test-${cards.length}`,
+        matchId: album.matchId,
+        title: album.title,
+        asset: album.asset
+      });
+    }
+  }
+
+  return {
+    id: 'neon-prototype',
+    title: 'neon prototype',
+    slotCount: 6,
+    cards
+  };
+}
+
 function assertNoHorizontalTriples(cards: LevelConfig['cards'], perRow: number, label: string): void {
   for (let index = 0; index < cards.length; index += perRow) {
     const row = cards.slice(index, index + perRow);
@@ -207,4 +335,10 @@ function assertNoHorizontalTriples(cards: LevelConfig['cards'], perRow: number, 
       assert(new Set(matchIds).size > 1, `${label} should not place three matching covers consecutively`);
     }
   }
+}
+
+function hasVisibleTriple(cards: LevelConfig['cards']): boolean {
+  const counts = new Map<string, number>();
+  for (const card of cards) counts.set(card.matchId, (counts.get(card.matchId) ?? 0) + 1);
+  return [...counts.values()].some((count) => count >= 3);
 }

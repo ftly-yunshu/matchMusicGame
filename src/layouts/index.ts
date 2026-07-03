@@ -1,5 +1,6 @@
 import type { CardState, LayoutCard, LayoutKind } from '../game/types.ts';
 import { buildGridLayout } from './grid.ts';
+import { buildNeon9Layout } from './neon9.ts';
 import { buildOverlapLayout } from './overlap.ts';
 import { buildShelfLayout } from './shelf.ts';
 import { buildStackLayout } from './stack.ts';
@@ -9,9 +10,11 @@ export function buildLayout(kind: LayoutKind, cards: CardState[]): LayoutCard[] 
     ? buildStackLayout(cards)
     : kind === 'shelf'
       ? buildShelfLayout(cards)
-      : kind === 'overlap'
-        ? buildOverlapLayout(cards)
-        : buildGridLayout(cards);
+      : kind === 'neon9'
+        ? buildNeon9Layout(cards)
+        : kind === 'overlap'
+          ? buildOverlapLayout(cards)
+          : buildGridLayout(cards);
   return kind === 'stack' ? layout : unlockFinalTriples(layout, cards);
 }
 

@@ -156,6 +156,19 @@ export function restartUnarchivedCards(state: GameState): GameState {
   };
 }
 
+export function returnTrayCardToBoard(state: GameState, cardId: string): GameState {
+  if (!state.tray.includes(cardId)) return state;
+
+  return {
+    ...state,
+    cards: state.cards.map((card) => (card.id === cardId && card.status === 'tray' ? { ...card, status: 'board' } : card)),
+    tray: state.tray.filter((id) => id !== cardId),
+    status: state.status === 'failed' ? 'playing' : state.status,
+    message: '',
+    deadlocked: false
+  };
+}
+
 function scatterUnarchivedCards<T extends { id: string; matchId: string }>(cards: T[]): T[] {
   if (cards.length <= 1) return cards;
 
